@@ -1,7 +1,7 @@
 import sqlite3
 
 # Database Connection
-conn = sqlite3.connect("library.db")
+conn = sqlite3.connect("books.db")
 cursor = conn.cursor()
 
 # Books Table
