@@ -1,8 +1,11 @@
 import sqlite3
+from datetime import datetime
 
+# Database Connection
 conn = sqlite3.connect("books.db")
 cursor = conn.cursor()
 
+# Create Issued Books Table
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS issued_books(
     issue_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -17,52 +20,50 @@ CREATE TABLE IF NOT EXISTS issued_books(
 conn.commit()
 
 
+# ---------------- ISSUE BOOK ---------------- #
+
 def issue_book():
 
-    book_id = int(input("Book ID: "))
-    student_id = int(input("Student ID: "))
-    issue_date = input("Issue Date: ")
-    due_date = input("Due Date: ")
+    book_id = int(input("Enter Book ID: "))
+    student_id = int(input("Enter Student ID: "))
+    issue_date = input("Enter Issue Date (YYYY-MM-DD): ")
+    due_date = input("Enter Due Date (YYYY-MM-DD): ")
 
-    cursor.execute("""
-    SELECT available
-    FROM books
-    WHERE id=?
-    """,(book_id,))
-
+    cursor.execute("SELECT available FROM books WHERE id=?", (book_id,))
     book = cursor.fetchone()
 
     if book and book[0] == 1:
 
         cursor.execute("""
-        INSERT INTO issued_books
-        (book_id, student_id, issue_date, due_date)
+        INSERT INTO issued_books(book_id, student_id, issue_date, due_date)
         VALUES(?,?,?,?)
-        """,(book_id, student_id, issue_date, due_date))
+        """, (book_id, student_id, issue_date, due_date))
 
         cursor.execute("""
         UPDATE books
-        SET available=0
-        WHERE id=?
-        """,(book_id,))
+        SET available = 0
+        WHERE id = ?
+        """, (book_id,))
 
         conn.commit()
 
-        print("Book Issued Successfully")
+        print("\nBook Issued Successfully!")
 
     else:
-        print("Book Not Available")
+        print("\nBook Not Available.")
 
+
+# ---------------- RETURN BOOK ---------------- #
 
 def return_book():
 
-    issue_id = int(input("Issue ID: "))
+    issue_id = int(input("Enter Issue ID: "))
 
     cursor.execute("""
     SELECT book_id
     FROM issued_books
     WHERE issue_id=?
-    """,(issue_id,))
+    """, (issue_id,))
 
     result = cursor.fetchone()
 
@@ -74,62 +75,128 @@ def return_book():
         UPDATE issued_books
         SET return_status='Returned'
         WHERE issue_id=?
-        """,(issue_id,))
+        """, (issue_id,))
 
         cursor.execute("""
         UPDATE books
         SET available=1
         WHERE id=?
-        """,(book_id,))
+        """, (book_id,))
 
         conn.commit()
 
-        print("Book Returned Successfully")
+        print("\nBook Returned Successfully!")
 
     else:
-        print("Issue Record Not Found")
+        print("\nIssue Record Not Found.")
 
+
+# ---------------- AVAILABLE BOOKS ---------------- #
 
 def available_books():
 
     cursor.execute("""
-    SELECT * FROM books
+    SELECT *
+    FROM books
     WHERE available=1
     """)
 
     books = cursor.fetchall()
 
-    print("\nAvailable Books\n")
+    print("\n===== AVAILABLE BOOKS =====")
 
-    for book in books:
-        print(book)
+    if books:
 
+        for book in books:
+            print(book)
+
+    else:
+
+        print("No Available Books")
+
+
+# ---------------- ISSUED BOOK REPORT ---------------- #
 
 def issued_books_report():
 
     cursor.execute("""
-    SELECT * FROM issued_books
+    SELECT *
+    FROM issued_books
     WHERE return_status='Not Returned'
     """)
 
     data = cursor.fetchall()
 
-    print("\nIssued Books\n")
+    print("\n===== ISSUED BOOKS =====")
 
-    for row in data:
-        print(row)
+    if data:
 
+        for row in data:
+            print(row)
+
+    else:
+
+        print("No Issued Books")
+
+
+# ---------------- FINE CALCULATOR ---------------- #
+
+def calculate_fine():
+
+    issue_id = int(input("Enter Issue ID: "))
+
+    cursor.execute("""
+    SELECT due_date, return_status
+    FROM issued_books
+    WHERE issue_id=?
+    """, (issue_id,))
+
+    record = cursor.fetchone()
+
+    if record:
+
+        due_date = record[0]
+        status = record[1]
+
+        if status == "Returned":
+
+            print("\nBook is already returned.")
+            return
+
+        today = datetime.today()
+        due = datetime.strptime(due_date, "%Y-%m-%d")
+
+        if today > due:
+
+            late_days = (today - due).days
+            fine = late_days * 20
+
+            print("\n===== FINE DETAILS =====")
+            print("Late Days :", late_days)
+            print("Fine Amount : Rs.", fine)
+
+        else:
+
+            print("\nNo Fine. Book is within Due Date.")
+
+    else:
+
+        print("\nIssue Record Not Found.")
+
+
+# ---------------- MAIN MENU ---------------- #
 
 while True:
 
-    print("\n===== ISSUE & RETURN =====")
+    print("\n========== ISSUE & RETURN SYSTEM ==========")
     print("1. Issue Book")
     print("2. Return Book")
     print("3. Available Books")
     print("4. Issued Books Report")
-    print("5. Exit")
+    print("5. Calculate Fine")
+    print("6. Exit")
 
-    choice = input("Enter Choice: ")
+    choice = input("Enter Your Choice: ")
 
     if choice == "1":
         issue_book()
@@ -144,7 +211,11 @@ while True:
         issued_books_report()
 
     elif choice == "5":
+        calculate_fine()
+
+    elif choice == "6":
+        print("Thank You!")
         break
 
     else:
-        print("Invalid Choice")
+        print("Invalid Choice! Please Try Again.")
